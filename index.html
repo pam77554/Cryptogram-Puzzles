@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cryptogram Puzzle Generator</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, sans-serif; background: #e8e8f0; }
+
+/* ── CONTROL PANEL ────────────────────────────────────────── */
+#controls {
+  max-width: 860px;
+  margin: 24px auto;
+  padding: 24px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+#controls h1 { font: bold 22pt Georgia; color: #1B2A4A; margin-bottom: 18px; }
+label.field-label { display: block; font-weight: bold; font-size: 13px; color: #1B2A4A; margin-bottom: 6px; }
+
+.row { display: flex; gap: 10px; align-items: stretch; margin-bottom: 16px; }
+input[type=url], input[type=text] {
+  flex: 1; padding: 9px 12px; border: 1.5px solid #B0A8C0; border-radius: 4px; font-size: 14px;
+}
+input[type=url]:focus, input[type=text]:focus { outline: none; border-color: #1B2A4A; }
+
+button.btn-primary {
+  padding: 9px 22px; background: #1B2A4A; color: white;
+  border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;
+  white-space: nowrap;
+}
+button.btn-primary:hover { background: #2a3f6a; }
+button.btn-green {
+  padding: 10px 26px; background: #4A7C59; color: white;
+  border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px;
+}
+button.btn-green:hover { background: #3a6147; }
+button.btn-purple {
+  padding: 10px 22px; background: #7B6D8D; color: white;
+  border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;
+}
+button.btn-ghost {
+  padding: 6px 14px; background: none; border: 1.5px solid #B0A8C0;
+  border-radius: 4px; cursor: pointer; color: #4A4060; font-size: 12px;
+}
+button.btn-ghost:hover { background: #f5f5f5; }
+
+#fetchStatus { margin-top: 6px; font-size: 12px; color: #7B6D8D; min-height: 18px; }
+#fetchStatus.error { color: #c0392b; }
+
+#quoteListSection { display: none; margin-bottom: 18px; }
+#quoteListSection h2 { font-size: 13px; color: #1B2A4A; font-weight: bold; margin-bottom: 8px; }
+#quoteList {
+  max-height: 360px; overflow-y: auto;
+  border: 1.5px solid #ddd; border-radius: 4px;
+}
+.quote-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px; border-bottom: 1px solid #eee;
+}
+.quote-row:last-child { border-bottom: none; }
+.quote-row input[type=checkbox] { margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; }
+.quote-row label { font-size: 13px; color: #1a1a2e; cursor: pointer; flex: 1; line-height: 1.5; }
+.quote-row .author-in { margin-top: 5px; width: 200px; padding: 3px 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; }
+.sent-badge { font-size: 10px; color: #999; white-space: nowrap; margin-top: 2px; }
+
+#manualSection { margin-bottom: 18px; }
+#manualInput { margin-top: 10px; display: none; }
+#manualInput textarea {
+  width: 100%; height: 70px; padding: 8px; border: 1.5px solid #B0A8C0;
+  border-radius: 4px; font-size: 13px; resize: vertical;
+}
+#manualInput textarea:focus { outline: none; border-color: #1B2A4A; }
+
+#selectedSection { display: none; margin-bottom: 18px; }
+#selectedSection h2 { font-size: 13px; color: #1B2A4A; font-weight: bold; margin-bottom: 8px; }
+.selected-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 12px; background: #f5f5fa; border-radius: 4px; margin-bottom: 4px; font-size: 12px;
+}
+.selected-item button {
+  background: none; border: none; cursor: pointer; color: #c0392b; font-size: 16px; padding: 0 4px; line-height: 1;
+}
+.actions-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+/* ── PUZZLE BOOK PAGES (screen preview) ───────────────────── */
+#puzzleBook { padding: 20px 0; }
+
+.print-page {
+  width: 8.5in;
+  min-height: 11in;
+  background: white;
+  margin: 20px auto;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  background: #1B2A4A;
+  color: white;
+  padding: 12px 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.page-header h1 { font: bold italic 18pt Georgia; color: white; }
+.page-header .sub {
+  font: 7.5pt 'Courier New'; color: #B8C4D8;
+  letter-spacing: 2px; margin-top: 5px;
+}
+.header-accent { background: #7B6D8D; height: 4px; flex-shrink: 0; }
+
+.page-content { padding: 18px 44px; flex: 1; }
+
+.page-footer {
+  background: #F0EEF4; color: #4A4060;
+  font: 7pt 'Courier New'; text-align: center;
+  padding: 7px; flex-shrink: 0;
+}
+
+.divider { border: none; border-top: 0.5px solid #B0A8C0; margin: 10px 0; }
+
+/* Puzzle text area */
+.puzzle-area {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 22px 18px;
+  margin: 14px 0;
+}
+.pword { display: flex; gap: 2px; }
+
+/* Letter cell: answer line close above cipher letter */
+.lcell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 22px;
+}
+.aline {
+  width: 20px;
+  height: 30px;              /* writing room above the line */
+  border-bottom: 1.5px solid #1a1a2e;
+}
+.agap { height: 3px; }       /* tiny gap — line is close to letter */
+.cletter {
+  font: bold 14pt 'Courier New';
+  color: #1B2A4A;
+  line-height: 1;
+}
+
+/* Punctuation cell (no answer line) */
+.pcell {
+  display: flex;
+  align-items: flex-end;
+  padding: 0 1px 0 0;
+}
+.pchar {
+  font: bold 14pt 'Courier New';
+  color: #1a1a2e;
+  line-height: 1;
+  margin-bottom: 0;
+}
+
+/* Alphabet tracker */
+.tracker-label {
+  font: bold 6.5pt 'Courier New'; color: #1B2A4A;
+  text-align: center; letter-spacing: 1px; margin-bottom: 6px;
+}
+.tracker { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+.tbox {
+  width: 34px; height: 50px;
+  border: 1px solid #7B6D8D;
+  display: flex; align-items: flex-start;
+  justify-content: center; padding-top: 4px;
+}
+.tbox span { font: bold 12pt 'Courier New'; color: #1B2A4A; }
+
+/* Solution entries */
+.sol-entry { margin: 10px 0; padding-bottom: 10px; }
+.sol-num { font: bold 10pt 'Courier New'; color: #1B2A4A; }
+.sol-back { font: 8pt 'Courier New'; color: #4A7C59; text-decoration: none; }
+.sol-text { font: italic 11pt Georgia; color: #1a1a2e; margin-top: 4px; line-height: 1.5; }
+.sol-author { font: italic 9pt Georgia; color: #7B6D8D; margin-top: 2px; }
+
+/* Hint entries */
+.hint-entry { display: flex; gap: 20px; align-items: baseline; margin: 9px 0; padding-bottom: 9px; }
+.hint-num { font: bold 10pt 'Courier New'; color: #1B2A4A; min-width: 80px; }
+.hint-text { font: bold italic 13pt Georgia; color: #4A7C59; }
+
+/* ── PRINT STYLES ─────────────────────────────────────────── */
+@media print {
+  body { background: white !important; }
+  #controls { display: none !important; }
+  .print-page {
+    margin: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always;
+    break-after: page;
+    width: 100% !important;
+    min-height: 100vh;
+  }
+  .print-page:last-child { page-break-after: avoid; break-after: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── CONTROL PANEL ──────────────────────────────────────── -->
+<div id="controls">
+  <h1>Cryptogram Puzzle Generator</h1>
+
+  <!-- Two-tab source picker -->
+  <div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid #1B2A4A">
+    <button id="tabPaste" onclick="switchTab('paste')"
+      style="padding:8px 20px;background:#1B2A4A;color:white;border:none;cursor:pointer;font-weight:bold;font-size:13px;border-radius:4px 4px 0 0">
+      Paste Page Text
+    </button>
+    <button id="tabFetch" onclick="switchTab('fetch')"
+      style="padding:8px 20px;background:#eee;color:#555;border:none;cursor:pointer;font-size:13px;border-radius:4px 4px 0 0;margin-left:4px">
+      Try URL Fetch
+    </button>
+    <span style="align-self:center;margin-left:12px;font-size:11px;color:#7B6D8D">
+      Most sites block URL fetching — Paste always works.
+    </span>
+  </div>
+
+  <!-- Paste panel (default) -->
+  <div id="panelPaste" style="border:1.5px solid #1B2A4A;border-top:none;padding:14px;margin-bottom:16px;border-radius:0 0 4px 4px">
+    <p style="font-size:12px;color:#4A4060;margin-bottom:10px;line-height:1.7">
+      1. Open the quotes page in your browser<br>
+      2. Press <b>Ctrl+A</b> to select all, then <b>Ctrl+C</b> to copy<br>
+      3. Click in the box below and press <b>Ctrl+V</b> to paste, then click Extract
+    </p>
+    <textarea id="pasteArea" placeholder="Paste the page text here..."
+      style="width:100%;height:130px;padding:8px;border:1.5px solid #B0A8C0;border-radius:4px;font-size:12px;resize:vertical"></textarea>
+    <div style="margin-top:8px">
+      <button class="btn-primary" onclick="parsePastedText()">Extract Quotes from Pasted Text</button>
+    </div>
+  </div>
+
+  <!-- URL fetch panel (secondary) -->
+  <div id="panelFetch" style="display:none;border:1.5px solid #1B2A4A;border-top:none;padding:14px;margin-bottom:16px;border-radius:0 0 4px 4px">
+    <p style="font-size:12px;color:#7B6D8D;margin-bottom:8px">Works on some smaller sites. If it fails, switch to Paste.</p>
+    <div class="row" style="margin-bottom:6px">
+      <input type="url" id="urlInput" placeholder="https://example.com/quotes-page">
+      <button class="btn-primary" onclick="fetchQuotes()">Fetch Quotes</button>
+    </div>
+    <div id="fetchStatus" style="font-size:12px;color:#7B6D8D;min-height:16px"></div>
+  </div>
+
+  <!-- Fetched quote list -->
+  <div id="quoteListSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0">Select quotes to use <span style="font-weight:normal;color:#999">(only quotes with 1–3 sentences are shown)</span>:</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" onclick="selectAllQuotes(true)">Select All</button>
+        <button class="btn-ghost" onclick="selectAllQuotes(false)">Deselect All</button>
+      </div>
+    </div>
+    <div id="quoteList"></div>
+    <div id="quoteCount" style="margin-top:6px;font-size:11px;color:#999"></div>
+  </div>
+
+  <!-- Manual entry -->
+  <div id="manualSection">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
+      <button class="btn-ghost" onclick="toggleManual()">+ Add a quote manually</button>
+      <span style="font-size:12px;color:#666;">or select a topic:</span>
+      <button class="btn-ghost" onclick="loadSampleQuotes('funny')">Funny</button>
+      <button class="btn-ghost" onclick="loadSampleQuotes('happiness')">Happiness</button>
+      <button class="btn-ghost" onclick="loadSampleQuotes('kindness')">Kindness</button>
+    </div>
+    <div id="manualInput">
+      <textarea id="manualQuote" placeholder="Type or paste a quote (max 3 sentences for best fit)..."></textarea>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="manualAuthor" placeholder="Author name (optional)">
+        <button class="btn-primary" onclick="addManualQuote()">Add Quote</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selected quotes -->
+  <div id="selectedSection">
+    <h2>Quotes selected (<span id="selectedCount">0</span>):</h2>
+    <div id="selectedList"></div>
+  </div>
+
+  <!-- Generate -->
+  <div style="margin-bottom:12px">
+    <label class="field-label">Book title:</label>
+    <input type="text" id="bookTitle" value="The Cryptogram Puzzle Book" style="max-width:420px">
+  </div>
+  <div class="actions-row">
+    <button class="btn-green" onclick="generatePuzzleBook()">Generate Puzzle Book</button>
+    <button class="btn-purple" id="printBtn" style="display:none" onclick="window.print()">&#128438; Print</button>
+    <button class="btn-green" id="savePdfBtn" style="display:none" onclick="savePdf()">&#8681; Save as PDF</button>
+    <span id="genStatus" style="font-size:12px;color:#7B6D8D"></span>
+  </div>
+</div>
+
+<!-- ── PUZZLE BOOK OUTPUT ──────────────────────────────────── -->
+<div id="puzzleBook"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────
+let fetchedQuotes = [];
+let selectedQuotes = []; // [{text, author, _manual}]
+
+// ── SAMPLE QUOTES ──────────────────────────────────────────────
+const SAMPLE_QUOTES = {
+  funny: [{"text":"A clear conscience is usually the sign of a bad memory.","author":"Steven Wright"},{"text":"A day without a friend is like a pot without a single drop of honey left inside.","author":"Winnie the Pooh"},{"text":"A day without sunshine is like, you know, night.","author":"Steve Martin"},{"text":"A failure is like fertilizer; it stinks to be sure, but it makes things grow faster in the future.","author":"Denis Waitley"},{"text":"A good friend will help you move. But a best friend will help you move a dead body.","author":"Jim Hayes"},{"text":"A true friend is someone who thinks that you are a good egg even though he knows that you are slightly cracked.","author":"Bernard Meltzer"},{"text":"A true friend overlooks your failures and tolerates your success!","author":"Doug Larson"},{"text":"Age is an issue of mind over matter. If you don\u2019t mind, it doesn\u2019t matter.","author":"Mark Twain"},{"text":"Age is something that doesn\u2019t matter unless you are a cheese.","author":"Luis Bunuel"},{"text":"All the things I like to do are either immoral, illegal, or fattening.","author":"Alexander Woollcott"},{"text":"Always be nice to your children because they are the ones who will choose your rest home.","author":"Phyllis Diller"},{"text":"As a child my family\u2019s menu consisted of two choices: take it or leave it.","author":"Buddy Hackett"},{"text":"As you get older, three things happen. The first is your memory goes, and I can\u2019t remember the other two.","author":"Sir Norman Wisdom"},{"text":"Before you marry a person, you should first make them use a computer with slow Internet to see who they really are.","author":"Will Ferrell"},{"text":"Behind every great man is a woman rolling her eyes.","author":"Jim Carrey"},{"text":"Better to remain silent and be thought a fool than to speak out and remove all doubt.","author":"Abraham Lincoln"},{"text":"By all means, marry. If you get a good wife, you will be happy. If you get a bad one, you will be a philosopher.","author":"Socrates"},{"text":"Children today are tyrants. They contradict their parents, gobble their food, and tyrannize their teachers.","author":"Socrates"},{"text":"Cleaning your house while your kids are still growing is like shoveling the walk before it stops snowing.","author":"Phyllis Diller"},{"text":"Clothes make the man. Naked people have little or no influence in society.","author":"Mark Twain"},{"text":"Common sense is like deodorant. The people who need it most never use it.","author":"Unknown"},{"text":"Do not take life too seriously. You will never get out of it alive.","author":"Elbert Hubbard"},{"text":"Don\u2019t sweat the petty things and don\u2019t pet the sweaty things.","author":"George Carlin"},{"text":"Don\u2019t worry about avoiding temptation. As you grow older, it will avoid you.","author":"Joey Adams"},{"text":"Education is what remains after one has forgotten what one has learned in school.","author":"Albert Einstein"},{"text":"Every time you feel yourself being pulled into other people\u2019s drama, repeat these word: Not my circus, not my monkeys.","author":"Polish Proverb"},{"text":"Facebook just sounds like a drag, in my day seeing pictures of peoples vacations was considered a punishment.","author":"Betty White"},{"text":"Friends are people who know you really well and like you anyway.","author":"Greg Tamblyn"},{"text":"Friendship is like money, easier made than kept.","author":"Samuel Butler"},{"text":"Good friends, good books, and a sleepy conscience: this is the ideal life.","author":"Mark Twain"},{"text":"I always arrive late at the office, but I make up for it by leaving early.","author":"Charles Lamb"},{"text":"I am an old man and have known a great many troubles, but most of them never happened.","author":"Mark Twain"},{"text":"I grew up with six brothers. That\u2019s how I learned to dance: waiting for the bathroom.","author":"Bob Hope"},{"text":"I have a new philosophy. I\u2019m only going to dread one day at a time.","author":"Charles M. Schulz"},{"text":"I have always wanted to be somebody, but I see now I should have been more specific.","author":"Lily Tomlin"},{"text":"I haven\u2019t spoken to my wife in years. I didn\u2019t want to interrupt her.","author":"Rodney Dangerfield"},{"text":"I intend to live forever. So far, so good.","author":"Steven Wright"},{"text":"I like long walks, especially when they are taken by people who annoy me.","author":"Noel Coward"},{"text":"I like work. It fascinates me. I can sit and look at it for hours.","author":"Jerome K. Jerome"},{"text":"I look like a casual, laid-back guy, but it\u2019s like a circus in my head.","author":"Steven Wright"},{"text":"I never forget a face \u2013 but in your case, I\u2019ll be glad to make an exception.","author":"Groucho Marx"},{"text":"I refuse to join any club that would have me as a member.","author":"Groucho Marx"},{"text":"I remixed a remix, it was back to normal.","author":"Mitch Hedberg"},{"text":"I used to sell furniture for a living. The trouble was, it was my own.","author":"Les Dawson"},{"text":"I walk around like everything is fine, but deep down, inside my shoe, my sock is sliding off.","author":"Unknown"},{"text":"I want my children to have all the things I couldn\u2019t afford. Then I want to move in with them.","author":"Phyllis Diller"},{"text":"I was trying to daydream, but my mind kept wandering.","author":"Steven Wright"},{"text":"I\u2019m at a place in my life when errands are starting to count as going out.","author":"Unknown"},{"text":"I\u2019m killing time while I wait for life to shower me with meaning and happiness.","author":"Bill Watterson"},{"text":"I\u2019m not for everyone. I\u2019m barely for me.","author":"Marc Maron"},{"text":"I\u2019m very pleased to be here. Let\u2019s face it, at my age, I\u2019m very pleased to be anywhere.","author":"George Burns"},{"text":"If at first you don\u2019t succeed, destroy all evidence that you tried.","author":"Steven Wright"},{"text":"If I had nine of my fingers missing I wouldn\u2019t type any slower.","author":"Mitch Hedberg"},{"text":"If I\u2019m not back in five minutes, just wait longer.","author":"Ace Ventura"},{"text":"If you think nobody cares about you, try missing a couple of payments.","author":"Steven Wright"},{"text":"If you want your children to listen, try talking softly to someone else.","author":"Ann Landers"},{"text":"It is one of the blessings of old friends that you can afford to be stupid with them.","author":"Ralph Waldo Emerson"},{"text":"It just occurred to me that the majority of my diet is made up of the foods that my kid didn\u2019t finish.","author":"Carrie Underwood"},{"text":"Knowledge is like underwear. It is useful to have it, but not necessary to show it off.","author":"Bill Murray"},{"text":"Laugh and the world laughs with you, snore and you sleep alone.","author":"Anthony Burgess"},{"text":"Life is what happens to us while we are making other plans.","author":"Allen Saunders"},{"text":"Love is like an hourglass, with the heart filling up as the brain empties.","author":"Jules Renard"},{"text":"Man invented language to satisfy his deep need to complain.","author":"Lily Tomlin"},{"text":"Marriage is a wonderful institution, but who wants to live in an institution?","author":"Groucho Marx"},{"text":"Most of us don\u2019t need a psychiatric therapist as much as a friend to be silly with.","author":"Robert Brault"},{"text":"Most people work just hard enough not to get fired and get paid just enough money not to quit.","author":"George Carlin"},{"text":"Most people would sooner die than think; in fact, they do so.","author":"Bertrand Russell"},{"text":"My ability to turn good news into anxiety is rivaled only by my ability to turn anxiety into chin acne.","author":"Tina Fey"},{"text":"My opinions may have changed, but not the fact that I\u2019m right.","author":"Ashleigh Brilliant"},{"text":"Never put off till tomorrow what you can do the day after tomorrow just as well.","author":"Mark Twain"},{"text":"No man goes before his time \u2013 unless the boss leaves early.","author":"Groucho Marx"},{"text":"Old age is like a plane flying through a storm. Once you\u2019re aboard, there\u2019s nothing you can do.","author":"Golda Meir"},{"text":"People say nothing is impossible, but I do nothing every day.","author":"A. A. Milne"},{"text":"The difference between stupidity and genius is that genius has its limits.","author":"Albert Einstein"},{"text":"The older you get, the better you get. Unless you\u2019re a banana.","author":"Betty White"},{"text":"The only thing worse than being talked about is not being talked about.","author":"Oscar Wilde"},{"text":"The secret of staying young is to live honestly, eat slowly, and lie about your age.","author":"Lucille Ball"},{"text":"The surest sign that intelligent life exists elsewhere in the universe is that it has never tried to contact us.","author":"Bill Watterson"},{"text":"There cannot be a crisis next week. My schedule is already full.","author":"Henry Kissinger"},{"text":"There is nothing better than a friend, unless it is a friend with chocolate.","author":"Linda Grayson"},{"text":"Think of how stupid the average person is, and realize half of them are stupider than that.","author":"George Carlin"},{"text":"Trouble knocked at the door, but, hearing laughter, hurried away.","author":"Benjamin Franklin"},{"text":"True friendship comes when the silence between two people is comfortable.","author":"David Tyson"},{"text":"When a man opens a car door for his wife, it\u2019s either a new car or a new wife.","author":"Prince Philip"},{"text":"When I eventually met Mr. Right I had no idea that his first name was Always.","author":"Rita Rudner"},{"text":"When I was a boy the Dead Sea was only sick.","author":"George Burns"},{"text":"When I was a kid my parents moved a lot, but I always found them.","author":"Rodney Dangerfield"},{"text":"When in doubt, look intelligent.","author":"Garrison Keillor"},{"text":"When life gives you lemons, squirt someone in the eye.","author":"Cathy Guisewite"},{"text":"Why do they call it rush hour when nothing moves?","author":"Robin Williams"},{"text":"You go through life wondering what is it all about but at the end of the day it\u2019s all about family.","author":"Rod Stewart"},{"text":"You know you\u2019ve reached middle age when you\u2019re cautioned to slow down by your doctor, instead of by the police.","author":"Joan Rivers"}],
+  happiness: [{"text":"Most folks are about as happy as they make up their minds to be.","author":"Abraham Lincoln"},{"text":"The secret of happiness is to make others believe they are the cause of it.","author":"Al Batt"},{"text":"Happiness is nothing more than good health and a bad memory.","author":"Albert Schweitzer"},{"text":"The happiness of a man in this life does not consist in the absence but in the mastery of his passions.","author":"Alfred Lord Tennyson"},{"text":"A person is never happy except at the price of some ignorance.","author":"Anatole France"},{"text":"Happiness arises in a state of peace, not of tumult.","author":"Ann Radcliffe"},{"text":"The discovery of a new dish does more for human happiness than the discovery of a new star.","author":"Anthelme Brillat-Savarin"},{"text":"Happiness depends upon ourselves.","author":"Aristotle"},{"text":"Happiness is that state of consciousness which proceeds from the achievement of one's values.","author":"Ayn Rand"},{"text":"Content makes poor men rich; discontentment makes rich men poor.","author":"Benjamin Franklin"},{"text":"If there were in the world today any large number of people who desired their own happiness more than they desired the unhappiness of others, we could have paradise in a few years.","author":"Bertrand Russell"},{"text":"All I can say about life is, Oh God, enjoy it!","author":"Bob Newhart"},{"text":"The pursuit of happiness is a most ridiculous phrase; if you pursue happiness you'll never find it.","author":"C. P. Snow"},{"text":"Happiness is not the absence of problems, but the ability to deal with them.","author":"Charles de Montesquieu"},{"text":"Cherish all your happy moments: they make a fine cushion for old age.","author":"Christopher Morley"},{"text":"Sometimes it's hard to avoid the happiness of others.","author":"David Assael"},{"text":"Slow down and enjoy life. It's not only the scenery you miss by going too fast - you also miss the sense of where you are going and why.","author":"Eddie Cantor"},{"text":"Happiness is a mystery like religion, and should never be rationalized.","author":"G. K. Chesterton"},{"text":"A lifetime of happiness! No man alive could bear it: it would be hell on earth.","author":"George Bernard Shaw"},{"text":"Happiness is having a large, loving, caring, close-knit family in another city.","author":"George Burns"},{"text":"Happiness is the only sanction of life; where happiness fails, existence remains a mad and lamentable experiment.","author":"George Santayana"},{"text":"To be stupid, selfish, and have good health are three requirements for happiness, though if stupidity is lacking, all is lost.","author":"Gustave Flaubert"},{"text":"Many persons have a wrong idea of what constitutes true happiness. It is not attained through self-gratification but through fidelity to a worthy purpose.","author":"Helen Keller"},{"text":"Man is the artificer of his own happiness.","author":"Henry David Thoreau"},{"text":"If we cannot live so as to be happy, let us least live so as to deserve it.","author":"Immanuel Hermann Fichte"}],
+  kindness: [{"text":"No act of kindness, no matter how small, is ever wasted.","author":"Aesop"},{"text":"Moments of kindness and reconciliation are worth having, even if the parting has to come sooner or later.","author":"Alice Munro"},{"text":"The end result of kindness is that it draws people to you.","author":"Anita Roddick"},{"text":"Ask yourself: Have you been kind today? Make kindness your daily modus operandi and change your world.","author":"Annie Lennox"},{"text":"There are no thanks for a kindness, which has been delayed.","author":"Anonymous"},{"text":"Compassion is the basis of all morality.","author":"Arthur Schopenhauer"},{"text":"There is no duty more obligatory than the repayment of kindness.","author":"Cicero"},{"text":"Forget injuries, never forget kindnesses.","author":"Confucius"},{"text":"Recompense injury with justice, and recompense kindness with kindness.","author":"Confucius"},{"text":"Carry out a random act of kindness, with no expectation of reward, safe in the knowledge that one day someone might do the same for you.","author":"Diana Spencer"},{"text":"I expect to pass through this world but once; any good thing therefore that I can do, or any kindness that I can show to any fellow creature, let me do it now; let me not defer or neglect it, for I shall not pass this way again.","author":"Ettiene De Grellet"},{"text":"Guard well within yourself that treasure, kindness. Know how to give without hesitation, how to lose without regret, how to acquire without meanness.","author":"George Sand"},{"text":"I have learnt silence from the talkative, toleration from the intolerant, and kindness from the unkind; yet strange, I am ungrateful to these teachers.","author":"Kahlil Gibran"},{"text":"Sometimes when we are generous in small, barely detectable ways it can change someone else's life forever.","author":"Margaret Cho"},{"text":"Beginning today, treat everyone you meet as if they were going to be dead by midnight.","author":"Og Mandino"},{"text":"To become acquainted with kindness one must be prepared to learn new things and feel new feelings.","author":"Robert J. Furey"},{"text":"Getting money is not all a man's business: to cultivate kindness is a valuable part of the business of life.","author":"Samuel Johnson"},{"text":"I have always depended on the kindness of strangers.","author":"Tennessee Williams"},{"text":"If you want others to be happy, practice compassion. If you want to be happy, practice compassion.","author":"The Dalai Lama"},{"text":"When you are kind to someone in trouble, you hope they'll remember and be kind to someone else. And it'll become like a wildfire.","author":"Whoopi Goldberg"},{"text":"That best portion of a good man's life, His little, nameless, unremembered acts of kindness and of love.","author":"William Wordsworth"}]
+};
+
+function loadSampleQuotes(topic) {
+  const quotes = SAMPLE_QUOTES[topic].slice();
+  // Fisher-Yates shuffle
+  for (let i = quotes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [quotes[i], quotes[j]] = [quotes[j], quotes[i]];
+  }
+  selectedQuotes = quotes.map(q => ({ text: q.text, author: q.author, _manual: true }));
+  renderSelectedList();
+}
+
+// ── CIPHER UTILITIES ───────────────────────────────────────────
+function seededRandom(seed) {
+  let s = Math.abs(seed) % 2147483647 || 1;
+  return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+}
+
+function makeCipher(seed) {
+  const rng = seededRandom(seed);
+  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const sh = [...alpha];
+  for (let i = 25; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [sh[i], sh[j]] = [sh[j], sh[i]];
+  }
+  // Eliminate fixed points
+  for (let i = 0; i < 26; i++) {
+    if (sh[i] === alpha[i]) {
+      const j = (i + 1) % 26;
+      [sh[i], sh[j]] = [sh[j], sh[i]];
+    }
+  }
+  const c = {};
+  alpha.forEach((ch, i) => c[ch] = sh[i]);
+  return c;
+}
+
+function encode(text, cipher) {
+  return text.toUpperCase().split('').map(ch => cipher[ch] || ch).join('');
+}
+
+function pickClue(cipher, quoteText) {
+  // Prefer a letter that actually appears in the quote
+  const upper = quoteText.toUpperCase();
+  for (const ch of 'ETAOINSHRDLU') {
+    if (upper.includes(ch) && cipher[ch]) {
+      return { plain: ch, encoded: cipher[ch] };
+    }
+  }
+  return { plain: 'E', encoded: cipher['E'] };
+}
+
+// ── TEXT UTILITIES ──────────────────────────────────────────────
+function countSentences(text) {
+  // Don't count ellipsis or common abbreviations as sentence ends
+  const t = text.replace(/\.\.\./g, '').replace(/\b(Mr|Mrs|Ms|Dr|St|vs|etc|Jr|Sr)\./gi, '$1X');
+  return (t.match(/[.!?]/g) || []).length;
+}
+
+function getHint(text) {
+  const words = text.trim().split(/\s+/);
+  if (!words.length) return '';
+  const firstLetters = words[0].replace(/[^A-Za-z]/g, '');
+  if (firstLetters.length <= 2 && words.length > 1) {
+    return words[0] + ' ' + words[1];
+  }
+  return words[0];
+}
+
+function cleanText(raw) {
+  return raw
+    .replace(/\s+/g, ' ')
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .replace(/–|—/g, '-')
+    .trim();
+}
+
+function esc(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── TAB SWITCHING ───────────────────────────────────────────────
+function switchTab(tab) {
+  const isPaste = tab === 'paste';
+  document.getElementById('panelPaste').style.display = isPaste ? 'block' : 'none';
+  document.getElementById('panelFetch').style.display = isPaste ? 'none' : 'block';
+  document.getElementById('tabPaste').style.background = isPaste ? '#1B2A4A' : '#eee';
+  document.getElementById('tabPaste').style.color = isPaste ? 'white' : '#555';
+  document.getElementById('tabFetch').style.background = isPaste ? '#eee' : '#1B2A4A';
+  document.getElementById('tabFetch').style.color = isPaste ? '#555' : 'white';
+  if (isPaste) setTimeout(() => document.getElementById('pasteArea').focus(), 100);
+}
+
+function parsePastedText() {
+  const raw = document.getElementById('pasteArea').value;
+  if (!raw.trim()) { alert('Please paste some text first.'); return; }
+
+  const found = extractFromPlainText(raw);
+  fetchedQuotes = found;
+
+  const status = document.getElementById('fetchStatus');
+  status.className = '';
+  status.textContent = found.length
+    ? `Found ${found.length} quote(s) with 1–3 sentences. Select the ones you want.`
+    : 'No suitable quotes detected. Try adding quotes manually below.';
+
+  renderFetchedList();
+}
+
+function extractFromPlainText(text) {
+  const candidates = new Set();
+
+  // Match text between curly quotes " " or straight quotes " "
+  const quotedRe = /[\u201c"]([^\u201c\u201d"]{20,350})[\u201d"]/g;
+  let m;
+  while ((m = quotedRe.exec(text)) !== null) {
+    candidates.add(cleanText(m[1]));
+  }
+
+  return [...candidates]
+    .filter(t => {
+      const s = countSentences(t);
+      const wordCount = t.trim().split(/\s+/).length;
+      return s >= 1 && s <= 3
+        && t.length >= 20 && t.length <= 350
+        && /[.!?]\s*$/.test(t)   // must end with sentence punctuation
+        && wordCount >= 7;        // short fragments (bios, titles) are usually < 7 words
+    })
+    .slice(0, 60);
+}
+
+// ── QUOTE FETCHING ──────────────────────────────────────────────
+async function fetchQuotes() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { alert('Please enter a URL first.'); return; }
+
+  const status = document.getElementById('fetchStatus');
+  status.className = '';
+  status.textContent = 'Fetching page...';
+
+  const proxies = [
+    'https://corsproxy.io/?' + encodeURIComponent(url),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+    'https://thingproxy.freeboard.io/fetch/' + url,
+  ];
+
+  let html = null;
+  for (const proxy of proxies) {
+    try {
+      status.textContent = 'Trying proxy ' + (proxies.indexOf(proxy) + 1) + ' of ' + proxies.length + '...';
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      html = await res.text();
+      break;
+    } catch (_) { /* try next */ }
+  }
+
+  if (!html) {
+    status.textContent = 'Could not fetch — this site blocks automated requests. Switch to the Paste tab instead.';
+    return;
+  }
+
+  const found = extractQuotes(html);
+  fetchedQuotes = found;
+  status.textContent = found.length
+    ? `Found ${found.length} quote(s) with 1–3 sentences. Select the ones you want.`
+    : 'No short quotes found automatically. Try the "Paste page text" option below.';
+  renderFetchedList();
+}
+
+function extractQuotes(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Strip noise
+  ['script','style','nav','footer','header','aside','noscript'].forEach(tag =>
+    doc.querySelectorAll(tag).forEach(el => el.remove())
+  );
+
+  const raw = new Set();
+
+  // Blockquotes
+  doc.querySelectorAll('blockquote').forEach(el => raw.add(cleanText(el.textContent)));
+
+  // Classes containing "quote"
+  doc.querySelectorAll('[class*="quote" i]').forEach(el => {
+    const t = cleanText(el.textContent);
+    if (t.length > 15) raw.add(t);
+  });
+
+  // List items (common on quote sites)
+  doc.querySelectorAll('li').forEach(el => {
+    const t = cleanText(el.textContent);
+    if (t.length >= 20 && t.length <= 400) raw.add(t);
+  });
+
+  // Paragraphs
+  doc.querySelectorAll('p').forEach(el => {
+    const t = cleanText(el.textContent);
+    if (t.length >= 20 && t.length <= 400) raw.add(t);
+  });
+
+  // Filter to 1–3 sentences, reasonable length
+  return [...raw]
+    .filter(t => {
+      const s = countSentences(t);
+      return s >= 1 && s <= 3 && t.length >= 20 && t.length <= 350;
+    })
+    .slice(0, 60);
+}
+
+function renderFetchedList() {
+  const listEl = document.getElementById('quoteList');
+  const countEl = document.getElementById('quoteCount');
+  const section = document.getElementById('quoteListSection');
+
+  if (!fetchedQuotes.length) {
+    listEl.innerHTML = '<p style="padding:14px;color:#999;font-size:13px">No suitable quotes found on this page.</p>';
+  } else {
+    listEl.innerHTML = fetchedQuotes.map((q, i) => `
+      <div class="quote-row">
+        <input type="checkbox" id="fq${i}" value="${i}" onchange="syncFromCheckboxes()">
+        <div style="flex:1">
+          <label for="fq${i}">${esc(q)}</label>
+          <input type="text" class="author-in" placeholder="Author (optional)" data-qi="${i}"
+            oninput="syncFromCheckboxes()">
+        </div>
+        <div class="sent-badge">${countSentences(q)} sent.</div>
+      </div>
+    `).join('');
+  }
+  countEl.textContent = fetchedQuotes.length ? `Showing ${fetchedQuotes.length} candidates.` : '';
+  section.style.display = 'block';
+}
+
+function selectAllQuotes(checked) {
+  const list = document.getElementById('quoteList');
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = checked);
+  syncFromCheckboxes();
+}
+
+function syncFromCheckboxes() {
+  const list = document.getElementById('quoteList');
+  const checked = [...list.querySelectorAll('input[type=checkbox]:checked')];
+  const fromFetch = checked.map(cb => {
+    const i = parseInt(cb.value);
+    const authorEl = list.querySelector(`input[data-qi="${i}"]`);
+    return { text: fetchedQuotes[i], author: (authorEl ? authorEl.value : '').trim(), _manual: false };
+  });
+  const manuals = selectedQuotes.filter(q => q._manual);
+  selectedQuotes = [...fromFetch, ...manuals];
+  renderSelectedList();
+}
+
+// ── MANUAL QUOTE ────────────────────────────────────────────────
+function toggleManual() {
+  const el = document.getElementById('manualInput');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addManualQuote() {
+  const text = document.getElementById('manualQuote').value.trim();
+  const author = document.getElementById('manualAuthor').value.trim();
+  if (!text) { alert('Please enter a quote.'); return; }
+  const s = countSentences(text);
+  if (s > 3) {
+    if (!confirm(`This quote has ${s} sentences and may not fit well on a page. Add it anyway?`)) return;
+  }
+  selectedQuotes.push({ text, author, _manual: true });
+  document.getElementById('manualQuote').value = '';
+  document.getElementById('manualAuthor').value = '';
+  renderSelectedList();
+}
+
+function removeQuote(i) {
+  selectedQuotes.splice(i, 1);
+  // Also uncheck the checkbox if it came from fetch
+  renderSelectedList();
+}
+
+function renderSelectedList() {
+  const section = document.getElementById('selectedSection');
+  const listEl = document.getElementById('selectedList');
+  const countEl = document.getElementById('selectedCount');
+
+  countEl.textContent = selectedQuotes.length;
+
+  if (!selectedQuotes.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  listEl.innerHTML = selectedQuotes.map((q, i) => `
+    <div class="selected-item">
+      <span>
+        ${q.author ? `<b>${esc(q.author)}</b>: ` : ''}${esc(q.text.substring(0,90))}${q.text.length > 90 ? '...' : ''}
+      </span>
+      <button onclick="removeQuote(${i})" title="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+// ── PUZZLE BOOK GENERATION ──────────────────────────────────────
+function generatePuzzleBook() {
+  if (!selectedQuotes.length) {
+    alert('Please select or add at least one quote first.');
+    return;
+  }
+
+  const title = document.getElementById('bookTitle').value.trim() || 'The Cryptogram Puzzle Book';
+
+  const puzzles = selectedQuotes.map((q, i) => {
+    const cipher = makeCipher(101 + i * 13);
+    const clue = pickClue(cipher, q.text);
+    return { text: q.text, author: q.author || '', cipher, clue };
+  });
+
+  const n = puzzles.length;
+  // Page numbers: 1=title, 2..n+1=puzzles, n+2=hints, n+3=full solutions
+  const hintPage = n + 2;
+  const fullSolPage = n + 3;
+  const totalPages = n + 3;
+
+  const book = document.getElementById('puzzleBook');
+  book.innerHTML = '';
+
+  book.appendChild(buildTitlePage(title, totalPages));
+
+  puzzles.forEach((p, i) => {
+    book.appendChild(buildPuzzlePage(p, i, n, fullSolPage, hintPage, totalPages));
+  });
+
+  book.appendChild(buildHintsPage(puzzles, n, hintPage, totalPages));
+  book.appendChild(buildFullSolutionsPage(puzzles, n, fullSolPage, totalPages));
+
+  document.getElementById('printBtn').style.display = 'inline-block';
+  document.getElementById('savePdfBtn').style.display = 'inline-block';
+  document.getElementById('genStatus').textContent = `Generated ${n} puzzle(s).`;
+  book.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── PDF SAVE ────────────────────────────────────────────────────
+function savePdf() {
+  const book = document.getElementById('puzzleBook');
+  const styles = document.querySelector('style').innerHTML;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Cryptogram Puzzles</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+body { background:white; }
+${styles}
+.print-page { margin:0 !important; box-shadow:none !important; width:100% !important; }
+@media print {
+  @page { size: letter portrait; margin: 0; }
+  .print-page { page-break-after: always; break-after: page; }
+  .print-page:last-child { page-break-after: avoid; break-after: avoid; }
+}
+</style>
+</head><body>
+${book.innerHTML}
+<script>
+  window.onload = function() { window.focus(); window.print(); };
+<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+// ── PAGE BUILDERS ───────────────────────────────────────────────
+function buildTitlePage(title, totalPages) {
+  const pg = page();
+  pg.id = 'page-title';
+  pg.innerHTML = `
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px 44px">
+      <div style="width:80px;height:4px;background:#7B6D8D;margin-bottom:40px"></div>
+      <h1 style="font:bold italic 38pt Georgia;color:#1B2A4A;text-align:center;line-height:1.2;margin-bottom:20px">
+        ${esc(title)}
+      </h1>
+      <div style="font:8pt 'Courier New';color:#7B6D8D;letter-spacing:4px;margin-bottom:40px">
+        D E C O D E &nbsp; T H E &nbsp; W I S D O M
+      </div>
+      <div style="width:80px;height:4px;background:#7B6D8D;margin-bottom:60px"></div>
+      <p style="font:italic 13pt Georgia;color:#4A4060;text-align:center;max-width:400px;line-height:1.8">
+        "Every cipher is a door;<br>every solution is a key."
+      </p>
+      <div style="margin-top:80px;padding:16px 24px;border:1px solid #B0A8C0;border-radius:4px;font:7.5pt 'Courier New';color:#7B6D8D;text-align:center;line-height:2.2;max-width:440px">
+        HOW TO PLAY<br>
+        Write your answers on the blank lines above each encoded letter.<br>
+        Use the letter clue and alphabet tracker to crack the code.
+      </div>
+    </div>
+    <div class="page-footer">THE CRYPTOGRAM PUZZLE BOOK &nbsp;&middot;&nbsp; Page 1 of ${totalPages}</div>
+  `;
+  return pg;
+}
+
+function buildPuzzlePage(puzzle, idx, n, fullSolPage, hintPage, totalPages) {
+  const pg = page();
+  pg.id = `puzzle-${idx}`;
+  const pageNum = idx + 2;
+
+  pg.innerHTML = `
+    <div class="page-header">
+      <h1>PUZZLE ${idx+1}${puzzle.author ? '  &mdash;  ' + esc(puzzle.author.toUpperCase()) : ''}</h1>
+      <div class="sub">
+        FULL SOLUTION ON PAGE ${fullSolPage} &nbsp;&middot;&nbsp; HINT ON PAGE ${hintPage}
+      </div>
+    </div>
+    <div class="header-accent"></div>
+    <div class="page-content">
+      <div class="puzzle-area">${renderPuzzleText(puzzle.text, puzzle.cipher)}</div>
+      <hr class="divider" style="margin-top:44px">
+      <div class="tracker-label">CIPHER KEY TRACKER &mdash; mark letters as you solve them</div>
+      <div class="tracker">${renderTracker()}</div>
+    </div>
+    <div style="background:white;border-top:1px solid #B0A8C0;padding:10px 44px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0">
+      <div style="font:bold 11pt 'Courier New';color:#1B2A4A">
+        CLUE:&nbsp;&nbsp;${puzzle.clue.encoded}&nbsp;&nbsp;=&nbsp;&nbsp;${puzzle.clue.plain}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="#page-hints" style="background:#7B6D8D;color:white;padding:7px 16px;border-radius:3px;font:bold 8pt 'Courier New';text-decoration:none;display:inline-block">
+          &#9654; HINT &rarr; Page ${hintPage}
+        </a>
+        <a href="#page-solutions" style="background:#1B2A4A;color:white;padding:7px 16px;border-radius:3px;font:bold 8pt 'Courier New';text-decoration:none;display:inline-block">
+          &#9654; FULL SOLUTION &rarr; Page ${fullSolPage}
+        </a>
+      </div>
+    </div>
+    <div class="page-footer">THE CRYPTOGRAM PUZZLE BOOK &nbsp;&middot;&nbsp; Page ${pageNum} of ${totalPages}</div>
+  `;
+  return pg;
+}
+
+function buildFullSolutionsPage(puzzles, n, pageNum, totalPages) {
+  const pg = page();
+  pg.id = 'page-solutions';
+
+  const entries = puzzles.map((p, i) => `
+    <div class="sol-entry">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span class="sol-num">Puzzle ${i+1}:</span>
+        <a href="#puzzle-${i}" class="sol-back">&larr; back to puzzle ${i+1} (page ${i+2})</a>
+      </div>
+      <div class="sol-text">${esc(p.text)}</div>
+      ${p.author ? `<div class="sol-author">&mdash; ${esc(p.author)}</div>` : ''}
+      <hr class="divider">
+    </div>
+  `).join('');
+
+  pg.innerHTML = `
+    <div class="page-header">
+      <h1>FULL SOLUTIONS</h1>
+      <div class="sub">COMPLETE DECODED ANSWERS FOR ALL PUZZLES</div>
+    </div>
+    <div class="header-accent"></div>
+    <div class="page-content" style="padding-top:20px">
+      ${entries}
+    </div>
+    <div class="page-footer">THE CRYPTOGRAM PUZZLE BOOK &nbsp;&middot;&nbsp; Page ${pageNum} of ${totalPages}</div>
+  `;
+  return pg;
+}
+
+function buildHintsPage(puzzles, n, pageNum, totalPages) {
+  const pg = page();
+  pg.id = 'page-hints';
+
+  const entries = puzzles.map((p, i) => `
+    <div class="hint-entry">
+      <div class="hint-num">Puzzle ${i+1}:</div>
+      <div class="hint-text">${esc(getHint(p.text))} &hellip;</div>
+      <a href="#puzzle-${i}" style="font:8pt 'Courier New';color:#4A7C59;text-decoration:none;white-space:nowrap;margin-left:auto">
+        &larr; puzzle ${i+1} (p.${i+2})
+      </a>
+    </div>
+    <hr class="divider">
+  `).join('');
+
+  pg.innerHTML = `
+    <div class="page-header">
+      <h1>HINTS</h1>
+      <div class="sub">FIRST WORD OR TWO OF EACH QUOTE &mdash; JUST A NUDGE</div>
+    </div>
+    <div class="header-accent"></div>
+    <div class="page-content" style="padding-top:24px">
+      <p style="font:8.5pt 'Courier New';color:#7B6D8D;margin-bottom:18px;letter-spacing:0.5px">
+        Each hint shows the first word (or first two words if the opening word is very short).
+      </p>
+      ${entries}
+    </div>
+    <div class="page-footer">THE CRYPTOGRAM PUZZLE BOOK &nbsp;&middot;&nbsp; Page ${pageNum} of ${totalPages}</div>
+  `;
+  return pg;
+}
+
+// ── RENDER HELPERS ──────────────────────────────────────────────
+function renderPuzzleText(text, cipher) {
+  const upper = text.toUpperCase();
+  const enc = encode(text, cipher);
+  const words = upper.split(' ');
+  const encWords = enc.split(' ');
+
+  return words.map((word, wi) => {
+    const encWord = encWords[wi] || '';
+    let cells = '';
+    for (let ci = 0; ci < word.length; ci++) {
+      const plain = word[ci];
+      const encCh = encWord[ci] || plain;
+      if (/[A-Z]/.test(plain)) {
+        cells += `
+          <div class="lcell">
+            <div class="aline"></div>
+            <div class="agap"></div>
+            <div class="cletter">${encCh}</div>
+          </div>`;
+      } else {
+        cells += `
+          <div class="pcell">
+            <div class="pchar">${esc(plain)}</div>
+          </div>`;
+      }
+    }
+    return `<div class="pword">${cells}</div>`;
+  }).join('');
+}
+
+function renderTracker() {
+  return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(ch =>
+    `<div class="tbox"><span>${ch}</span></div>`
+  ).join('');
+}
+
+function page() {
+  const div = document.createElement('div');
+  div.className = 'print-page';
+  return div;
+}
+</script>
+</body>
+</html>
