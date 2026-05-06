@@ -678,10 +678,14 @@ function savePdf() {
 body { background:white; }
 ${styles}
 .print-page { margin:0 !important; box-shadow:none !important; width:100% !important; }
+#page-solutions, #page-hints { min-height:auto !important; height:auto !important; overflow:visible !important; }
+.sol-entry { page-break-inside: avoid; }
+.hint-entry { page-break-inside: avoid; }
 @media print {
   @page { size: letter portrait; margin: 0; }
   .print-page { page-break-after: always; break-after: page; }
   .print-page:last-child { page-break-after: avoid; break-after: avoid; }
+  #page-solutions, #page-hints { min-height:auto !important; height:auto !important; overflow:visible !important; }
 }
 </style>
 </head><body>
